@@ -89,13 +89,15 @@ Output binary: `build/release-mingw32-x86_64/quake3e.x64.exe`
 | Night (`ut4_austria`) | Casa mkt (`ut4_casa`) |
 | :---: | :---: |
 | ![ut4_abbey](screenshots/austria.png) | ![ut4_casa](screenshots/casa.png) |
-|:---: | :---: |
+| :---: | :---: |
 | Casa Fount  (`ut4_casa`) | Derelict (`ut4_casa`) | 
 | ![ut4_casa](screenshots/casa_2.png) | ![ut4_derelict_b5](screenshots/derelict.png) |
-|:---: | :---: |
-| Tohunga (`ut4_tohunga_b8`)
-| ![ut4_tohunga_b8](screenshots/tohunga_b8.png) |
-|
+| :---: | :---: |
+| Tohunga (`ut4_tohunga_b8`) | Prague (`ut4_prague`) |
+| ![ut4_tohunga_b8](screenshots/tohunga_b8.png) | ![ut4_prague](screenshots/prague.png) |
+| :---: | :---: |
+| Prague (`ut4_prague`) | Prague (`ut4_prague`) |
+| ![ut4_prague](screenshots/prague2.png) | ![ut4_prague](screenshots/prague3.png) |
 
 ## Credits & License
 * Upstream Urban Terror fork: [rorgoroth/Quake3e-UrbanTerror](https://github.com)
