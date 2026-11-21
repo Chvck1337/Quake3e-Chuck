@@ -1,6 +1,6 @@
-# Quake3e-UrbanTerror (Custom Visual & Competitive Build)
+# Quake3e-Chuck (Custom Visual Build)
 
-A customized fork of [rorgoroth/Quake3e-UrbanTerror](https://github.com) tailored for **Urban Terror 4.3.4**. This build enhances visual clarity, texture relief, shadow smoothness, and brightness consistency across Linux and Windows without altering game rules or requiring external shaders.
+A customized fork of [rorgoroth/Quake3e-UrbanTerror](https://github.com/rorgoroth/Quake3e-UrbanTerror) tailored for **Urban Terror 4.3.4**. This build enhances visual clarity, texture relief, shadow smoothness, and brightness consistency across Linux and Windows without altering game rules or requiring external shaders.
 
 ## Key Modifications
 
@@ -63,20 +63,20 @@ seta r_neatsky "1"
 sudo pacman -S --needed base-devel git sdl2 curl openal mesa libx11 libxext libxrandr libxxf86vm
 ```
 
-### Build for Linux (OpenGL)
+### Build for Linux
 ```bash
-make BUILD_RENDERER_VULKAN=0 USE_SDL=1 -j\$(nproc)
+make USE_SDL=1 -j\$(nproc)
 ```
 Output binary: `build/release-linux-x86_64/quake3e.x64`
 
-### Cross-Compile for Windows 64-bit (`MinGW-w64`)
+### Cross-Compile to make a Windows 64-bit binary (`MinGW-w64`)
 Install the cross-compiler:
 ```bash
 sudo pacman -S --needed mingw-w64-gcc
 ```
 Build the standalone Windows executable:
 ```bash
-make PLATFORM=mingw32 ARCH=x86_64 BUILD_RENDERER_VULKAN=0 USE_CURL=1 -j\$(nproc)
+make PLATFORM=mingw32 ARCH=x86_64 USE_CURL=1 -j\$(nproc)
 ```
 Output binary: `build/release-mingw32-x86_64/quake3e.x64.exe`
 
