@@ -89,7 +89,7 @@ Output binary: `build/release-mingw32-x86_64/quake3e.x64.exe`
 | ![ut4_abbey](screenshots/austria.png) | ![ut4_casa](screenshots/casa.png) |
 |:---: | :---: |
 | Casa Fount  (`ut4_casa`) | Derelict (`ut4_casa`) | 
-| ![ut4_casa](screenshots/casa_2.png) | ![ut4_casa](screenshots/derelict.png) |
+| ![ut4_casa](screenshots/casa_2.png) | ![ut4_derelict_b5](screenshots/derelict.png) |
 |:---: | :---: |
 | Tohunga (`ut4_tohunga_b8`)
 | ![ut4_tohunga_b8](screenshots/tohunga_b8.png) |
