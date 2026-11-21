@@ -1,4 +1,6 @@
-# Quake3e-Chuck (Custom Visual Build)
+# Quake3e-Chuck (Custom Visual Build) 
+
+# Fun*T|Chuck in game
 
 A customized fork of [rorgoroth/Quake3e-UrbanTerror](https://github.com/rorgoroth/Quake3e-UrbanTerror) tailored for **Urban Terror 4.3.4**. This build enhances visual clarity, texture relief, shadow smoothness, and brightness consistency across Linux and Windows without altering game rules or requiring external shaders.
 
