@@ -407,6 +407,79 @@ static void R_LoadMergedLightmaps( const lump_t *l, byte *image )
 R_LoadLightmaps
 ===============
 */
+
+// Added
+static float CubicHermite( float A, float B, float C, float D, float t ) {
+	float a = -A / 2.0f + (3.0f * B) / 2.0f - (3.0f * C) / 2.0f + D / 2.0f;
+	float b = A - (5.0f * B) / 2.0f + 2.0f * C - D / 2.0f;
+	float c = -A / 2.0f + C / 2.0f;
+	float d = B;
+	return a * t * t * t + b * t * t + c * t + d;
+}
+
+// Added
+static void R_UpscaleLightmap4x( const byte *src, byte *dst, int size ) {
+	int scale = 4;
+	int outSize = size * scale;
+	int x, y, c;
+
+	for ( y = 0; y < outSize; y++ ) {
+		float gy = ((float)y + 0.5f) / (float)scale - 0.5f;
+		int y1 = (int)floorf( gy );
+		float ty = gy - (float)y1;
+
+		int y0 = y1 - 1 < 0 ? 0 : y1 - 1;
+		int y2 = y1 + 1 >= size ? size - 1 : y1 + 1;
+		int y3 = y1 + 2 >= size ? size - 1 : y1 + 2;
+		if ( y1 < 0 ) y1 = 0;
+		if ( y1 >= size ) y1 = size - 1;
+
+		for ( x = 0; x < outSize; x++ ) {
+			float gx = ((float)x + 0.5f) / (float)scale - 0.5f;
+			int x1 = (int)floorf( gx );
+			float tx = gx - (float)x1;
+
+			int x0 = x1 - 1 < 0 ? 0 : x1 - 1;
+			int x2 = x1 + 1 >= size ? size - 1 : x1 + 1;
+			int x3 = x1 + 2 >= size ? size - 1 : x1 + 2;
+			if ( x1 < 0 ) x1 = 0;
+			if ( x1 >= size ) x1 = size - 1;
+
+			for ( c = 0; c < 4; c++ ) {
+				float p00 = src[(y0 * size + x0) * 4 + c];
+				float p10 = src[(y0 * size + x1) * 4 + c];
+				float p20 = src[(y0 * size + x2) * 4 + c];
+				float p30 = src[(y0 * size + x3) * 4 + c];
+
+				float p01 = src[(y1 * size + x0) * 4 + c];
+				float p11 = src[(y1 * size + x1) * 4 + c];
+				float p21 = src[(y1 * size + x2) * 4 + c];
+				float p31 = src[(y1 * size + x3) * 4 + c];
+
+				float p02 = src[(y2 * size + x0) * 4 + c];
+				float p12 = src[(y2 * size + x1) * 4 + c];
+				float p22 = src[(y2 * size + x2) * 4 + c];
+				float p32 = src[(y2 * size + x3) * 4 + c];
+
+				float p03 = src[(y3 * size + x0) * 4 + c];
+				float p13 = src[(y3 * size + x1) * 4 + c];
+				float p23 = src[(y3 * size + x2) * 4 + c];
+				float p33 = src[(y3 * size + x3) * 4 + c];
+
+				float col0 = CubicHermite( p00, p10, p20, p30, tx );
+				float col1 = CubicHermite( p01, p11, p21, p31, tx );
+				float col2 = CubicHermite( p02, p12, p22, p32, tx );
+				float col3 = CubicHermite( p03, p13, p23, p33, tx );
+
+				float val = CubicHermite( col0, col1, col2, col3, ty );
+				if ( val < 0.0f ) val = 0.0f;
+				if ( val > 255.0f ) val = 255.0f;
+				dst[(y * outSize + x) * 4 + c] = (byte)(val + 0.5f);
+			}
+		}
+	}
+}
+
 static void R_LoadLightmaps( const lump_t *l ) {
 	const byte	*buf;
 	byte		image[LIGHTMAP_LEN*LIGHTMAP_LEN*4];
@@ -436,8 +509,7 @@ static void R_LoadLightmaps( const lump_t *l ) {
 
 	numLightmaps = l->filelen / (LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3);
 
-	if ( r_mergeLightmaps->integer && numLightmaps > 1 ) {
-		// check for low texture sizes
+	if ( 0 ) { // Desactivado para aplicar escalado bicúbico 4x a cada lightmap
 		if ( glConfig.maxTextureSize >= LIGHTMAP_LEN * 2 ) {
 			tr.mergeLightmaps = qtrue;
 			R_LoadMergedLightmaps( l, image ); // reuse stack space
@@ -452,17 +524,22 @@ static void R_LoadLightmaps( const lump_t *l ) {
 
 	tr.lightmaps = ri.Hunk_Alloc( tr.numLightmaps * sizeof(image_t *), h_low );
 
-	for ( i = 0 ; i < tr.numLightmaps ; i++ ) {
-		maxIntensity = R_ProcessLightmap( image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity );
-		tr.lightmaps[i] = R_CreateImage( va( "*lightmap%d", i ), NULL, image, LIGHTMAP_SIZE, LIGHTMAP_SIZE,
-			lightmapFlags | IMGFLAG_CLAMPTOEDGE );
+	// Added
+	{
+		int upSize = LIGHTMAP_SIZE * 4;
+		byte *upscaled = ri.Hunk_AllocateTempMemory( upSize * upSize * 4 );
+
+		for ( i = 0 ; i < tr.numLightmaps ; i++ ) {
+			maxIntensity = R_ProcessLightmap( image, buf + i * LIGHTMAP_SIZE * LIGHTMAP_SIZE * 3, maxIntensity );
+			R_UpscaleLightmap4x( image, upscaled, LIGHTMAP_SIZE );
+			tr.lightmaps[i] = R_CreateImage( va( "*lightmap%d", i ), NULL, upscaled, upSize, upSize,
+				lightmapFlags | IMGFLAG_CLAMPTOEDGE );
+		}
+
+		ri.Hunk_FreeTempMemory( upscaled );
 	}
-
-	//if ( r_lightmap->integer == 2 )	{
-	//	ri.Printf( PRINT_ALL, "Brightest lightmap value: %d\n", ( int ) ( maxIntensity * 255 ) );
-	//}
+	//------
 }
-
 
 /*
 =================
@@ -550,7 +627,7 @@ static shader_t *ShaderForShaderNum( const int shaderNum, int lightmapNum ) {
 
 	dsh = &s_worldData.shaders[ shaderNum ];
 
-	if ( ( r_vertexLight->integer && tr.vertexLightingAllowed ) || glConfig.hardwareType == GLHW_PERMEDIA2 ) {
+	if ( 0 ) {
 		lightmapNum = LIGHTMAP_BY_VERTEX;
 	}
 
@@ -2309,7 +2386,7 @@ static void R_LoadEntities( const lump_t *l ) {
 				break;
 			}
 			*vs++ = '\0';
-			if ( r_vertexLight->integer && tr.vertexLightingAllowed ) {
+			if ( 0 ) {
 				RE_RemapShader(value, s, "0");
 			}
 			continue;

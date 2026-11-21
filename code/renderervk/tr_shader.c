@@ -3279,6 +3279,8 @@ static shader_t *FinishShader( void ) {
 	//
 	// if we are in r_vertexLight mode, never use a lightmap texture
 	//
+
+	//if ( stage > 1 && !shader.noVLcollapse && ( stages[1].stateBits & GLS_BLEND_BITS ) != ( GLS_SRCBLEND_DST_COLOR | GLS_DSTBLEND_ZERO ) ) {
 	if ( stage > 1 && ( ( r_vertexLight->integer && tr.vertexLightingAllowed && !shader.noVLcollapse ) /* || glConfig.hardwareType == GLHW_PERMEDIA2) */ ) ) {
 		VertexLightingCollapse();
 		stage = 1;

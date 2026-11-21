@@ -116,6 +116,40 @@ float CorrectAlpha(float threshold, float alpha, vec2 tc)
 #endif
 #endif
 
+// Bumpy
+/*
+float getBumpLuma(vec3 c) {
+	return dot(c, vec3(0.299, 0.587, 0.114));
+}
+
+float computeProceduralBump(sampler2D tex, vec2 uv) {
+	// Ignora elementos 2D del HUD y fuentes
+	vec2 fw = fwidth(uv);
+	if (max(fw.x, fw.y) > 0.04) {
+		return 1.0;
+	}
+
+	// Paso fijo de 1 texel exacto (independiente de la distancia del jugador)
+	vec2 texel = 1.0 / vec2(textureSize(tex, 0));
+
+	// Muestreo en cruz/diagonal para un biselado 3D profundo y limpio
+	float tl = getBumpLuma(texture(tex, uv + vec2(-texel.x, -texel.y)).rgb);
+	float br = getBumpLuma(texture(tex, uv + vec2( texel.x,  texel.y)).rgb);
+	float tr = getBumpLuma(texture(tex, uv + vec2( texel.x, -texel.y)).rgb);
+	float bl = getBumpLuma(texture(tex, uv + vec2(-texel.x,  texel.y)).rgb);
+
+	// Diferencia de altura puramente relativa (sin vector de luz que aclare zonas)
+	float edge = ((tl - br) + (tr - bl) * 0.5);
+
+	// Fuerza alta (1.0) para un relieve 3D bien marcado sin romper la textura
+	// For better FPS change 1.0 inside of 'float relief = 1.0 + (edge * 1.0)'; to 0.5 o 0.6
+	float relief = 1.0 + (edge * 1.0);
+
+	// Mantiene el brillo promedio en 1.0 (ni aclara ni oscurece el mapa)
+	return clamp(relief, 0.45, 1.55);
+}
+*/
+
 void main() {
 #ifdef USE_FOG
 	vec4 fog = texture(fog_texture, fog_tex_coord);
@@ -477,6 +511,11 @@ void main() {
 #if !defined(USE_TX1) && !defined(USE_TX2)
 	base = color0;
 #endif
+
+		// --- ACTIVAR EFECTO BUMP PROCEDURAL ---
+		//float bump = computeProceduralBump(texture0, frag_tex_coord0);
+		//base.rgb *= bump;
+		// --------------------------------------
 
 #ifdef USE_FOG
 	if ( acff == 1 ) {

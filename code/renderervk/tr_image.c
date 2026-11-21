@@ -338,6 +338,50 @@ Scale up the pixel values in a texture to increase the
 lighting range
 ================
 */
+// Added
+static qboolean R_IsDecalTexture( const byte *data, int width, int height ) {
+	int i, total = width * height;
+	int neutralCorners = 0;
+
+	if ( !data || width < 4 || height < 4 ) {
+		return qfalse;
+	}
+
+	// 1. Si tiene transparencia real (canal alfa < 250), es un decal o recorte
+	for ( i = 0; i < total; i++ ) {
+		if ( data[i * 4 + 3] < 250 ) {
+			return qtrue;
+		}
+	}
+
+	// 2. Revisar las 4 esquinas de la textura: los decals de blend (2x / filter / add)
+	// siempre tienen fondo neutro exacto (128, 255 o 0) en sus 4 esquinas para no verse cuadrados
+	const int corners[4] = {
+		0,
+		(width - 1) * 4,
+		(height - 1) * width * 4,
+		((height - 1) * width + (width - 1)) * 4
+	};
+
+	for ( i = 0; i < 4; i++ ) {
+		const byte *px = &data[corners[i]];
+		// Gris neutro 128 (blendFunc GL_DST_COLOR GL_SRC_COLOR)
+		if ( abs(px[0] - 128) <= 2 && abs(px[1] - 128) <= 2 && abs(px[2] - 128) <= 2 ) {
+			neutralCorners++;
+		}
+		// Blanco puro 255 (blendFunc filter / GL_DST_COLOR GL_ZERO)
+		else if ( px[0] >= 253 && px[1] >= 253 && px[2] >= 253 ) {
+			neutralCorners++;
+		}
+		// Negro puro 0 (blendFunc add / GL_ONE GL_ONE)
+		else if ( px[0] <= 2 && px[1] <= 2 && px[2] <= 2 ) {
+			neutralCorners++;
+		}
+	}
+
+	return (neutralCorners == 4) ? qtrue : qfalse;
+}
+
 static void R_LightScaleTexture( byte *in, int inwidth, int inheight, qboolean only_gamma )
 {
 	if ( in == NULL )
@@ -369,6 +413,12 @@ static void R_LightScaleTexture( byte *in, int inwidth, int inheight, qboolean o
 	{
 		int		i, c;
 		byte	*p;
+
+		// Added - No alterar la intensidad de decals con fondo neutro (128/255/0) o canal alfa
+		if ( R_IsDecalTexture( in, inwidth, inheight ) ) {
+			return;
+		}
+		// -----
 
 		p = (byte *)in;
 
@@ -656,15 +706,6 @@ static void generate_image_upload_data( image_t *image, byte *data, Image_Upload
 		}
 	}
 
-	//
-	// perform optional picmip operation
-	//
-	if ( picmip && ( tr.mapLoading || r_nomip->integer == 0 ) ) {
-		scaled_width >>= r_picmip->integer;
-		scaled_height >>= r_picmip->integer;
-		//x >>= r_picmip->integer;
-		//y >>= r_picmip->integer;
-	}
 
 	//
 	// clamp to minimum size
@@ -838,6 +879,56 @@ static void LoadTexture( int miplevel, int x, int y, int width, int height, cons
 		qglTexImage2D( GL_TEXTURE_2D, miplevel, image->internalFormat, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
 }
 
+// Added
+static void R_ApplyBumpAndSharpen( byte *data, int width, int height ) {
+	int x, y, c;
+	int stride = width * 4;
+	byte *copy;
+
+	if ( width < 4 || height < 4 ) {
+		return;
+	}
+
+	// Added - Ignorar decals y texturas con canal alfa para evitar bordes cuadrados
+	if ( R_IsDecalTexture( data, width, height ) ) {
+		return;
+	}
+
+	copy = (byte *)Z_Malloc( width * height * 4 );
+	Com_Memcpy( copy, data, width * height * 4 );
+
+	for ( y = 1; y < height - 1; y++ ) {
+		for ( x = 1; x < width - 1; x++ ) {
+			int idx = y * stride + x * 4;
+			int idx_tl = (y - 1) * stride + (x - 1) * 4;
+			int idx_br = (y + 1) * stride + (x + 1) * 4;
+			int idx_up = (y - 1) * stride + x * 4;
+			int idx_dn = (y + 1) * stride + x * 4;
+			int idx_lt = y * stride + (x - 1) * 4;
+			int idx_rt = y * stride + (x + 1) * 4;
+
+			// Luminancia para calcular el relieve 3D (esquina superior izquierda vs inferior derecha)
+			int luma_tl = (copy[idx_tl] * 77 + copy[idx_tl + 1] * 150 + copy[idx_tl + 2] * 29) >> 8;
+			int luma_br = (copy[idx_br] * 77 + copy[idx_br + 1] * 150 + copy[idx_br + 2] * 29) >> 8;
+			int bump = (luma_tl - luma_br) / 3; // Fuerza del relieve 3D (sube o baja el divisor 3)
+
+			for ( c = 0; c < 3; c++ ) {
+				int center = copy[idx + c];
+				int avg = (copy[idx_up + c] + copy[idx_dn + c] + copy[idx_lt + c] + copy[idx_rt + c]) >> 2;
+
+				// Nitidez (sharpen) + relieve 3D sumado
+				int sharp = center + ((center - avg) >> 1);
+				int final_val = sharp + bump;
+
+				if ( final_val < 0 ) final_val = 0;
+				if ( final_val > 255 ) final_val = 255;
+				data[idx + c] = (byte)final_val;
+			}
+		}
+	}
+
+	Z_Free( copy );
+}
 
 /*
 ===============
@@ -904,6 +995,12 @@ static void Upload32( byte *data, int x, int y, int width, int height, image_t *
 			R_ColorShiftLightingBytes( p, p, qfalse );
 		}
 	}
+
+	// Added
+	if ( picmip && !subImage && data ) {
+		R_ApplyBumpAndSharpen( data, width, height );
+	}
+	//------
 
 	//
 	// perform optional picmip operation
@@ -1640,7 +1737,8 @@ void R_SetColorMappings( void ) {
 
 	// setup the overbright lighting
 	// negative value will force gamma in windowed mode
-	tr.overbrightBits = abs( r_overBrightBits->integer );
+	tr.overbrightBits = 1;
+	applyGamma = qfalse;
 
 	// never overbright in windowed mode
 #ifdef USE_VULKAN
@@ -1701,7 +1799,7 @@ void R_SetColorMappings( void ) {
 	}
 
 	for ( i = 0; i < ARRAY_LEN( s_intensitytable ); i++ ) {
-		j = i * r_intensity->value;
+		j = i * 1.3f;
 		if ( j > 255 ) {
 			j = 255;
 		}
