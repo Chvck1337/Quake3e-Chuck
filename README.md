@@ -65,7 +65,7 @@ sudo pacman -S --needed base-devel git sdl2 curl openal mesa libx11 libxext libx
 
 ### Build for Linux
 ```bash
-make USE_SDL=1 -j\$(nproc)
+make USE_SDL=1 -j$(nproc)
 ```
 Output binary: `build/release-linux-x86_64/quake3e.x64`
 
@@ -76,7 +76,7 @@ sudo pacman -S --needed mingw-w64-gcc
 ```
 Build the standalone Windows executable:
 ```bash
-make PLATFORM=mingw32 ARCH=x86_64 USE_CURL=1 -j\$(nproc)
+make PLATFORM=mingw32 ARCH=x86_64 USE_CURL=1 -j$(nproc)
 ```
 Output binary: `build/release-mingw32-x86_64/quake3e.x64.exe`
 
